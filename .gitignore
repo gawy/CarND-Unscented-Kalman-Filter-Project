@@ -3,3 +3,10 @@
 
 # build files
 build/
+CMakeFiles/
+cmake-build-debug/
+cmake*
+Testing/
+
+// CLion files
+.idea
