@@ -67,6 +67,8 @@ public:
   ///* Sigma point spreading parameter
   double lambda_;
 
+  // Normalized Innovation Squared value for current prediction step
+  double nis_;
 
   /**
    * Constructor

@@ -35,10 +35,10 @@ UKF::UKF() {
   Xsig_pred_ = MatrixXd(n_x_, 2*n_aug_ + 1);
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  std_a_ = 1.3;
+  std_a_ = 3;
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 1.3;
+  std_yawdd_ = 3;
   
   //DO NOT MODIFY measurement noise values below these are provided by the sensor manufacturer.
   // Laser measurement noise standard deviation position1 in m
@@ -162,6 +162,9 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
   MatrixXd K =  P_ * Ht * Si;
   MatrixXd I = MatrixXd::Identity(x_.size(), x_.size());
 
+  nis_ = y.transpose() * Si * y;
+  cout << "Laser NIS: " << nis_ << endl;
+
   //new state
   x_ = x_ + (K * y);
   P_ = (I - K * H) * P_;
@@ -261,17 +264,29 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   }
 
   //calculate Kalman gain K;
-  MatrixXd K = Tc * S.inverse();
+  MatrixXd Si = S.inverse();
+  MatrixXd K = Tc * Si;
 
   //update state mean and covariance matrix
-  this->x_ = this->x_ + K * (meas_package.raw_measurements_ - z_pred);
+  VectorXd z_diff = (meas_package.raw_measurements_ - z_pred);
+  this->x_ = this->x_ + K * z_diff;
   this->P_ = this->P_ - K * S * K.transpose();
+
+  //calculate Noise Innovation Squared
+  nis_ = z_diff.transpose() * Si * z_diff;
+  cout << "Radar NIS: " << nis_ << endl;
 
   cout << "Updated X:" << endl << x_ << endl;
   cout << "Updated P:" << endl << P_ << endl;
 
 }
 
+/**
+ * Generate weights corresponding to Sigma matrix.
+ * @param n_aug - dimention of augmented matrix
+ * @param lambda - spread parameter that is used for generating Sigma points
+ * @return Vector of weights per every vector in Sigma point matrix
+ */
 VectorXd UKF::getWeights(int n_aug, double lambda) const {
   VectorXd weights = VectorXd(2 * n_aug + 1);
   double weight_0 = lambda/(lambda+n_aug);
@@ -283,7 +298,10 @@ VectorXd UKF::getWeights(int n_aug, double lambda) const {
   return weights;
 }
 
-
+/**
+ * Create an augmented matrix of Sigma points.
+ * @param Xsig_out - matrix used to write resulting values
+ */
 void UKF::AugmentedSigmaPoints(MatrixXd* Xsig_out) {
 
   int n_x = this->n_x_;
@@ -341,6 +359,12 @@ void UKF::AugmentedSigmaPoints(MatrixXd* Xsig_out) {
 
 }
 
+/**
+ * Predict where sigma point will be after delta_t.
+ * @param Xsig_aug - Sigma-pts matrix
+ * @param delta_t - time difference since last time packet
+ * @param Xsig_out - matrix to write predicted values to
+ */
 void UKF::SigmaPointPrediction(MatrixXd *Xsig_aug, double delta_t, MatrixXd* Xsig_out) {
   cout << "Time to see a future in " << delta_t << " seconds" << endl;
   //set state dimension
@@ -397,6 +421,11 @@ void UKF::SigmaPointPrediction(MatrixXd *Xsig_aug, double delta_t, MatrixXd* Xsi
 
 }
 
+/**
+ * Predict actual mean and covariance based on predicted Sigma points.
+ * @param x_out - resulting mean vector
+ * @param P_out - resutlting covariance matrix
+ */
 void UKF::PredictMeanAndCovariance(VectorXd* x_out, MatrixXd* P_out) {
 
   //set state dimension

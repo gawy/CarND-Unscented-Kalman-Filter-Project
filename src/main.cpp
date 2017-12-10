@@ -41,7 +41,14 @@ int main()
 
   long packet_counter = 0;
 
-  h.onMessage([&ukf,&tools,&estimations,&ground_truth,&packet_counter](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  // NIS out file
+  ofstream nis_out("nis.txt", ofstream::out);
+  nis_out << "NIS for ";
+  if (ukf.use_laser_) { nis_out << "Laser "; }
+  if (ukf.use_radar_) { nis_out << "Radar "; }
+  nis_out << endl;
+
+  h.onMessage([&ukf,&tools,&estimations,&ground_truth,&packet_counter,&nis_out](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -151,7 +158,8 @@ int main()
           auto msg = "42[\"estimate_marker\"," + msgJson.dump() + "]";
           // std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
-	  
+
+          nis_out << ukf.nis_ << endl;
         }
       } else {
         
